@@ -7,8 +7,8 @@ plugins {
 }
 
 group = "ly.com.tahaben"
-version = libs.versions.kmpSplashVersion.get()
-base { archivesName.set("kmp-splash-plugin") }
+version = libs.versions.kmpNativeSplashVersion.get()
+base { archivesName.set("kmp-native-splash-plugin") }
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
@@ -33,8 +33,8 @@ tasks.test {
 gradlePlugin {
     plugins {
         create("kmpNativeSplash") {
-            id = "ly.com.tahaben.kmpsplash"
-            implementationClass = "ly.com.tahaben.kmpsplash.KmpSplashPlugin"
+            id = "ly.com.tahaben.kmp-native-splash"
+            implementationClass = "ly.com.tahaben.kmpnativesplash.KmpNativeSplashPlugin"
             displayName = "KMP Native Splash"
             description = "Generates native splash assets for Android and iOS in Kotlin Multiplatform projects."
         }

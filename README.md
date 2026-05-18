@@ -5,10 +5,10 @@ runtime until your app is ready to draw. for Compose Multiplatform / KMP project
 
 The project ships two pieces:
 
-| Module      | Coordinates                                | What it does                                                                                                  |
-|-------------|--------------------------------------------|---------------------------------------------------------------------------------------------------------------|
-| **Plugin**  | `ly.com.tahaben.kmpsplash` (Gradle plugin) | Generates Android `res/drawable-*` + `values-*` and iOS `Assets.xcassets/` + `LaunchScreen.storyboard` assets |
-| **Library** | `ly.com.tahaben:kmpsplash` (KMP runtime)   | `NativeSplash.preserve()` / `NativeSplash.remove()` to defer the first frame until you're ready               |
+| Module      | Coordinates                                        | What it does                                                                                                  |
+|-------------|----------------------------------------------------|---------------------------------------------------------------------------------------------------------------|
+| **Plugin**  | `ly.com.tahaben.kmp-native-splash` (Gradle plugin) | Generates Android `res/drawable-*` + `values-*` and iOS `Assets.xcassets/` + `LaunchScreen.storyboard` assets |
+| **Library** | `ly.com.tahaben:kmp-native-splash` (KMP runtime)   | `NativeSplash.preserve()` / `NativeSplash.remove()` to defer the first frame until you're ready               |
 
 Together they replace the manual ritual of hand-rolling per-density PNGs, Android 12 `windowSplashScreen*` themes, iOS
 launch storyboards, and `UILaunchStoryboardName` plumbing — for every flavor of every variant.
@@ -17,7 +17,8 @@ launch storyboards, and `UILaunchStoryboardName` plumbing — for every flavor o
 
 ## Features
 
-- **Single source of truth** — declare colors, foreground image, branding, and Android 12 icon in one `kmpSplash { … }`
+- **Single source of truth** — declare colors, foreground image, branding, and Android 12 icon in one
+  `kmpNativeSplash { … }`
   block.
 - **Dark mode** — supply `colorDark` / `imageDark` and the plugin writes a parallel `drawable-night-*` / dark-appearance
   asset tree.
@@ -51,7 +52,7 @@ in the AGP 9 split structure (where the Android application module lives in a se
 ```kotlin
 // composeApp/build.gradle.kts  (or shared/build.gradle.kts on AGP 9)
 plugins {
-    id("ly.com.tahaben.kmpsplash") version "1.0.0"
+    id("ly.com.tahaben.kmp-native-splash") version "1.0.0"
 }
 ```
 
@@ -62,7 +63,7 @@ plugins {
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("ly.com.tahaben:kmpsplash:1.0.0")
+            implementation("ly.com.tahaben:kmp-native-splash:1.0.0")
         }
     }
 }
@@ -80,7 +81,7 @@ calls compile and link everywhere.
 
 ```kotlin
 // composeApp/build.gradle.kts
-kmpSplash {
+kmpNativeSplash {
     color = "#42a5f5"
     image = "splash_assets/logo.png" // supply a 4× asset — path resolves against the module directory
 }
@@ -95,7 +96,7 @@ Run once:
 Generated outputs:
 
 ```
-build/generated/kmpsplash/default/res/   (Android — auto-fed to AGP if applied)
+build/generated/kmpnativesplash/default/res/   (Android — auto-fed to AGP if applied)
 └── drawable-mdpi/   drawable-hdpi/   …   drawable-xxxhdpi/
     drawable-v21/    drawable-night/  drawable-*-v31/
     values/styles.xml + values-v31/styles.xml
@@ -147,12 +148,12 @@ kotlin {
     listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
-            export("ly.com.tahaben:kmpsplash:1.0.0")
+            export("ly.com.tahaben:kmp-native-splash:1.0.0")
         }
     }
     sourceSets {
         commonMain.dependencies {
-            api("ly.com.tahaben:kmpsplash:1.0.0")
+            api("ly.com.tahaben:kmp-native-splash:1.0.0")
         }
     }
 }
@@ -204,7 +205,7 @@ fun App() {
 ### Full DSL surface
 
 ```kotlin
-kmpSplash {
+kmpNativeSplash {
     // ── Project coordinates ────────────────────────────────────────────────
     // AGP 9 split only; omit for the classic single-module structure (auto-detected).
     // Gradle project path of the standalone com.android.application module.
@@ -293,7 +294,7 @@ android {
         create("prod")
     }
 }
-kmpSplash {
+kmpNativeSplash {
     flavor("dev") { color = "#ffffff" }
     flavor("prod") { color = "#42a5f5" }
 }
@@ -329,7 +330,7 @@ its location is controlled by `ios.projectPath` / `ios.targetName` as before.
 
 ```kotlin
 // shared/build.gradle.kts
-kmpSplash {
+kmpNativeSplash {
     // Standard AGP 9 layout (single :androidApp) needs nothing — auto-detected.
     // Set this only for non-standard layouts (multiple app modules / custom names):
     androidModule = ":androidApp"
@@ -365,7 +366,7 @@ instead and warns once.
 ### iOS multi-flavor Xcode wiring (opt-in)
 
 ```kotlin
-kmpSplash {
+kmpNativeSplash {
     ios {
         autoWireXcodeFlavors = true
         // Both default to the stock KMP layout; override only if yours deviates.
@@ -409,10 +410,10 @@ All edits are idempotent — re-running produces zero new entries. **Commit your
 > but the app always launches with the default. Causes, in order of likelihood:
 > 1. **Xcode wiring is opt-in and disabled.** Check the Gradle log: if
      > `> Task …:wireXcodeFlavors SKIPPED` (or the iOS task warns that Xcode is NOT wired),
-     > then `kmpSplash.ios.autoWireXcodeFlavors` is `false` (the default — it patches
+     > then `kmpNativeSplash.ios.autoWireXcodeFlavors` is `false` (the default — it patches
      > `project.pbxproj`, so it's off until you opt in). Enable it:
      >    ```kotlin
->    kmpSplash { ios { autoWireXcodeFlavors = true } }
+     > kmpNativeSplash { ios { autoWireXcodeFlavors = true } }
 >    ```
      >    Commit your Xcode project first. Without this, the per-flavor storyboards are
      > generated but never connected to any build configuration.
@@ -431,7 +432,7 @@ All edits are idempotent — re-running produces zero new entries. **Commit your
 When the project doesn't apply AGP, or when `useGeneratedSourceSet = false`:
 
 ```kotlin
-kmpSplash { useGeneratedSourceSet = false }
+kmpNativeSplash { useGeneratedSourceSet = false }
 ```
 
 Output flips to the on-disk source-set path:

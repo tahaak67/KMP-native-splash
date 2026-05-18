@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "ly.com.tahaben"
-version = libs.versions.kmpSplashVersion.get()
+version = libs.versions.kmpNativeSplashVersion.get()
 
 kotlin {
     compilerOptions {
@@ -19,7 +19,7 @@ kotlin {
     }
     jvm()
     androidLibrary {
-        namespace = "ly.com.tahaben.kmpsplash"
+        namespace = "ly.com.tahaben.kmpnativesplash"
         compileSdk = libs.versions.android.compileSdk.get().toInt()
         minSdk = libs.versions.android.minSdk.get().toInt()
 
@@ -72,11 +72,12 @@ mavenPublishing {
 
     signAllPublications()
 
-    coordinates(group.toString(), "kmpsplash", version.toString())
+    coordinates(group.toString(), "kmp-native-splash", version.toString())
 
     pom {
-        name = "My library"
-        description = "A library."
+        name = "KMP-native-splash"
+        description =
+            "Generate native splash screens for Android and iOS from a single Kotlin Gradle DSL — and keep them on screen at runtime until your app is ready to draw."
         inceptionYear = "2026"
         url = "https://github.com/tahaak67/KMP-native-splash/"
         licenses {

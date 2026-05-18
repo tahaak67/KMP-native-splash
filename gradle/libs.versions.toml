@@ -5,7 +5,7 @@ android-minSdk = "24"
 android-compileSdk = "36"
 vanniktechMavenPublish = "0.36.0"
 androidxSplashscreen = "1.2.0"
-kmpSplashVersion = "1.0.0"
+kmpNativeSplashVersion = "1.0.0"
 junit = "5.10.2"
 
 [libraries]
