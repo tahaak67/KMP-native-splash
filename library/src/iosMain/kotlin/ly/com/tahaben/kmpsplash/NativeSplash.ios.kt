@@ -15,16 +15,29 @@ actual object NativeSplash {
     private var explicitStoryboardName: String? = null
 
     actual fun preserve() {
+        if (!isHostedApp()) return
         if (preserved) return
         preserved = true
         installOverlay()
     }
 
     actual fun remove() {
+        if (!isHostedApp()) return
         if (!preserved) return
         preserved = false
         animateOutAndDetach()
     }
+
+    /**
+     * True only inside a real hosted iOS app. A Kotlin/Native unit-test binary is a bare
+     * `.kexe` run directly on the simulator — no `UIApplicationMain`, no app delegate, no
+     * windows, and no app bundle, so `NSBundle.mainBundle.bundleIdentifier` is null. Any
+     * UIKit access there (starting at `UIApplication.sharedApplication`) is a native
+     * segfault, not a catchable error, so preserve/remove must be no-ops. Every shipping
+     * iOS app/extension has a bundle identifier, so app behaviour is unaffected. This is
+     * checked before any UIKit call and never touches UIKit itself.
+     */
+    private fun isHostedApp(): Boolean = NSBundle.mainBundle.bundleIdentifier != null
 
     /**
      * Storyboard used for the in-app preserve overlay.
