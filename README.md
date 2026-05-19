@@ -1,7 +1,27 @@
-# kmp-native-splash
+![Maven Central Version](https://img.shields.io/maven-central/v/ly.com.tahaben/kmp-native-splash?style=flat-square)
+![GitHub Repo stars](https://img.shields.io/github/stars/tahaak67/KMP-native-splash?style=flat-square)
+![GitHub License](https://img.shields.io/github/license/tahaak67/KMP-native-splash?style=flat-square)
+![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/tahaak67/KMP-native-splash?style=flat-square)
+![Static Badge](https://img.shields.io/badge/platform-android-brightgreen?style=flat-square&label=platform)
+![Static Badge](https://img.shields.io/badge/platform-ios-red?style=flat-square&label=platform)
 
-Generate **native** splash screens for Android and iOS from a single Kotlin Gradle DSL — and keep them on screen at
-runtime until your app is ready to draw. for Compose Multiplatform / KMP projects.
+# KMP-native-splash
+
+Generate **native** splash screens for Android and iOS from a single Kotlin Gradle DSL, then keep them on screen at
+runtime until your app is ready to draw — built for Compose Multiplatform / KMP projects.
+
+## Demo
+
+<table>
+  <tr>
+    <td align="center"><b>Android</b></td>
+    <td align="center"><b>iOS</b></td>
+  </tr>
+  <tr>
+    <td><img src="images/kmp_native_splash_android.gif" alt="KMP-native-splash Android demo" width="300"></td>
+    <td><img src="images/kmp_native_splash_ios.gif" alt="KMP-native-splash iOS demo" width="300"></td>
+  </tr>
+</table>
 
 The project ships two pieces:
 
@@ -15,31 +35,88 @@ launch storyboards, and `UILaunchStoryboardName` plumbing — for every flavor o
 
 ---
 
+## Contents
+
+- [Quick start](#quick-start)
+- [Features](#features)
+- [Installation](#installation)
+    - [1. Apply the Gradle plugin](#1-apply-the-gradle-plugin)
+    - [2. Add the runtime library (optional)](#2-add-the-runtime-library-optional)
+- [Usage](#usage)
+    - [Generate the assets](#generate-the-assets)
+    - [Defer the first frame at runtime](#defer-the-first-frame-at-runtime)
+- [Customization](#customization)
+    - [Full DSL surface](#full-dsl-surface)
+    - [AGP integration](#agp-integration)
+    - [AGP 9 split structure](#agp-9-split-structure)
+    - [iOS multi-flavor Xcode wiring](#ios-multi-flavor-xcode-wiring-opt-in)
+    - [Source-set fallback (no AGP)](#source-set-fallback-no-agp)
+    - [Runtime knobs](#runtime-knobs)
+- [Troubleshooting](#troubleshooting)
+- [Tasks reference](#tasks-reference)
+- [Compatibility](#compatibility)
+- [License](#license)
+- [Contributing](#contributing)
+- [Acknowledgements](#acknowledgements)
+
+---
+
+## Quick start
+
+The Gradle **plugin** is the only required piece. Apply it to your KMP module (the one with `kotlin { }` /
+`commonMain` — `composeApp`, or `shared` on the AGP 9 split structure):
+
+```kotlin
+// composeApp/build.gradle.kts
+plugins {
+    id("ly.com.tahaben.kmp-native-splash") version "1.0.0"
+}
+
+kmpNativeSplash {
+    color = "#42a5f5"
+    image = "splash_assets/logo.png" // 4× asset; path resolves against the module dir
+}
+```
+
+Generate the native Android + iOS splash assets:
+
+```bash
+./gradlew generateNativeSplash
+```
+
+That's it — when AGP is applied the assets are wired into your Android build automatically. To also **keep the splash
+on screen until your app is ready to draw**, add the optional runtime library and call `NativeSplash.preserve()` /
+`remove()` — see [Usage](#defer-the-first-frame-at-runtime).
+
+---
+
 ## Features
 
-- **Single source of truth** — declare colors, foreground image, branding, and Android 12 icon in one
-  `kmpNativeSplash { … }`
-  block.
-- **Dark mode** — supply `colorDark` / `imageDark` and the plugin writes a parallel `drawable-night-*` / dark-appearance
-  asset tree.
-- **Android 12+ splash API** — generates `drawable-*-v31` icons + `values-v31/styles.xml` with
-  `windowSplashScreenAnimatedIcon`, `windowSplashScreenIconBackgroundColor`, `windowSplashScreenBrandingImage`.
-- **Flavors** — `flavor("dev") { … }` produces per-flavor Android resources (AGP-integrated or source-set fallback) and
-  per-flavor iOS storyboards / imagesets.
-- **AGP variant integration** — when AGP is applied the plugin hooks `androidComponents.onVariants` and feeds outputs
-  through `variant.sources.res.addGeneratedSourceDirectory`, so `processVariantAndroidResources` picks them up with zero
-  extra wiring.
-- **iOS Xcode auto-wiring (opt-in)** — `autoWireXcodeFlavors = true` patches `project.pbxproj` to register the
-  per-flavor storyboards and set `LAUNCH_SCREEN_STORYBOARD` per `XCBuildConfiguration`, then points `Info.plist`'s
-  `UILaunchStoryboardName` at `$(LAUNCH_SCREEN_STORYBOARD)`. Idempotent — deterministic SHA-1-derived object IDs.
-- **Runtime control** — `NativeSplash.preserve()` keeps the native splash on screen; `NativeSplash.remove()` dismisses
-  it (animated fade on iOS, `setKeepOnScreenCondition` flip on Android).
-- **Configuration-cache friendly** — every task input is declared via `Property<T>` / `RegularFileProperty`; outputs are
-  wired into `OutputDirectory` so incremental builds work.
+- **Single source of truth** — colors, foreground image, branding, and the Android 12 icon in one
+  `kmpNativeSplash { … }` block.
+- **Native output** — per-density Android `drawable-*` / `values-*` and iOS `Assets.xcassets` +
+  `LaunchScreen.storyboard`.
+- **Dark mode** — `colorDark` / `imageDark` generate a parallel `drawable-night-*` / dark-appearance tree.
+- **Android 12+ splash API** — `drawable-*-v31` icons + `values-v31/styles.xml` (animated icon, icon background,
+  branding image).
+- **Flavors** — `flavor("dev") { … }` produces per-flavor Android resources and per-flavor iOS storyboards / imagesets.
+- **AGP & AGP 9 ready** — auto-wires generated resources into AGP variants, and auto-detects the Android application
+  module in the AGP 9 split structure.
+- **iOS Xcode auto-wiring (opt-in)** — patches `project.pbxproj` + `Info.plist` for per-flavor launch storyboards;
+  idempotent.
+- **Runtime control** — `NativeSplash.preserve()` / `remove()` from common code to hold the splash until you're ready
+  (animated fade on iOS).
 
 ---
 
 ## Installation
+
+> **Plugin vs. library — what you actually need.** The **Gradle plugin** is the only
+> required piece: apply it to *generate* the native splash assets at build time. The
+> **runtime library** (`ly.com.tahaben:kmp-native-splash`) is **optional** — add it only
+> if you want to control the splash from common code via `NativeSplash.preserve()` /
+> `NativeSplash.remove()` (keep it on screen, then dismiss it, once your app is ready to
+> draw). Generation alone needs no library dependency.
 
 ### 1. Apply the Gradle plugin
 
@@ -56,10 +133,13 @@ plugins {
 }
 ```
 
-### 2. Add the runtime library
+### 2. Add the runtime library (optional)
+
+Skip this step entirely if you only need the generated assets. Add it when you want to
+call `NativeSplash.preserve()` / `NativeSplash.remove()` from common code:
 
 ```kotlin
-// composeApp/build.gradle.kts
+// composeApp/build.gradle.kts  (or shared/build.gradle.kts on AGP 9)
 kotlin {
     sourceSets {
         commonMain.dependencies {
@@ -69,9 +149,23 @@ kotlin {
 }
 ```
 
+In the **AGP 9 split structure**, also add it to the **`:androidApp`** module's
+dependencies — the Android `Activity` that calls `NativeSplash.installSplashScreen(this)`
+/ `preserve()` lives there, so it needs the dependency directly (it isn't pulled in via
+the `shared` module):
+
+```kotlin
+// androidApp/build.gradle.kts  (AGP 9 split structure)
+dependencies {
+    implementation("ly.com.tahaben:kmp-native-splash:1.0.0")
+}
+```
+
 The runtime is published for `androidTarget`, `iosX64`, `iosArm64`, `iosSimulatorArm64`, `jvm` (covers Compose Desktop's
 `jvm("desktop")`), `js`, `wasmJs`, and `linuxX64`. JVM, Linux, and the web targets ship no-op actuals so commonMain
 calls compile and link everywhere.
+
+> Release notes & version history: [GitHub Releases](https://github.com/tahaak67/KMP-native-splash/releases).
 
 ---
 
@@ -204,6 +298,9 @@ fun App() {
 
 ### Full DSL surface
 
+<details>
+<summary><b>Show every option</b></summary>
+
 ```kotlin
 kmpNativeSplash {
     // ── Project coordinates ────────────────────────────────────────────────
@@ -280,6 +377,8 @@ kmpNativeSplash {
 }
 ```
 
+</details>
+
 Per-flavor `generateDevAndroidSplash`, `generateDevIosSplash`, `generateDevNativeSplash` are registered automatically.
 
 ### AGP integration
@@ -305,6 +404,14 @@ Yields `generateDevDebugAndroidSplash`, `generateProdReleaseAndroidSplash`, etc.
 required.**
 
 ### AGP 9 split structure
+
+AGP 9 splits the classic single `composeApp` module: shared/generated code stays in the KMP module (`shared`, applying
+`com.android.kotlin.multiplatform.library`), while the Android application + `productFlavors` move to a standalone
+`:androidApp` module (`com.android.application`). Apply this plugin to the **KMP module** in both layouts — it resolves
+where the Android application module is.
+
+<details>
+<summary><b>Resolution precedence, source-set naming & manifest details</b></summary>
 
 Classic KMP projects keep the `kotlin { }` multiplatform extension **and** the
 `com.android.application` + `productFlavors` in one `composeApp` module. AGP 9 splits
@@ -363,6 +470,8 @@ codegen. `useGeneratedSourceSet = true` isn't supported across the AGP 9 module
 boundary — in a true split the plugin writes into the resolved module's source set
 instead and warns once.
 
+</details>
+
 ### iOS multi-flavor Xcode wiring (opt-in)
 
 ```kotlin
@@ -379,6 +488,11 @@ kmpNativeSplash {
 }
 ```
 
+All edits are idempotent — re-running produces zero new entries. **Commit your Xcode project before enabling this.**
+
+<details>
+<summary><b>How the <code>project.pbxproj</code> patch works</b></summary>
+
 Running `./gradlew generateNativeSplash` then patches `project.pbxproj`:
 
 - Adds `PBXFileReference` + `PBXBuildFile` + Resources-phase entry + `Base.lproj` group child for every
@@ -390,7 +504,7 @@ Running `./gradlew generateNativeSplash` then patches `project.pbxproj`:
   `INFOPLIST_KEY_UILaunchStoryboardName` (no on-disk `Info.plist`), it routes that build-setting key through the same
   `$(LAUNCH_SCREEN_STORYBOARD)` indirection instead.
 
-All edits are idempotent — re-running produces zero new entries. **Commit your Xcode project before enabling this.**
+</details>
 
 > **Prerequisite — per-flavor build configurations + schemes (the plugin does not create these).**
 > iOS has no product flavors. A per-flavor launch screen is selected by the **Xcode build
@@ -404,28 +518,8 @@ All edits are idempotent — re-running produces zero new entries. **Commit your
 > ([KMP-Flavorizr](https://github.com/tahaak67/KMP-Flavorizr) / xcconfig style),
 > `Dev Debug`, `PROD_RELEASE`. It only patches configurations that already exist — it
 > does not create them.
->
-> **Troubleshooting: "it always shows the default launch storyboard regardless of flavor."**
-> The per-flavor `LaunchScreen<Flavor>.storyboard` files generate and look correct in Xcode,
-> but the app always launches with the default. Causes, in order of likelihood:
-> 1. **Xcode wiring is opt-in and disabled.** Check the Gradle log: if
-     > `> Task …:wireXcodeFlavors SKIPPED` (or the iOS task warns that Xcode is NOT wired),
-     > then `kmpNativeSplash.ios.autoWireXcodeFlavors` is `false` (the default — it patches
-     > `project.pbxproj`, so it's off until you opt in). Enable it:
-     >    ```kotlin
-     > kmpNativeSplash { ios { autoWireXcodeFlavors = true } }
->    ```
-     >    Commit your Xcode project first. Without this, the per-flavor storyboards are
-     > generated but never connected to any build configuration.
-> 2. **No per-flavor build configurations** (the prerequisite above). With wiring enabled,
-     > `./gradlew generateNativeSplash` logs each `config '<name>' → <storyboard>` mapping and
-     > warns loudly when every configuration resolved to the default. If you only see
-     > `Debug`/`Release`, add the per-flavor configs.
-> 3. **`GENERATE_INFOPLIST_FILE = YES`** — the on-disk `Info.plist` edit is ignored by Xcode.
-     > The plugin also routes `INFOPLIST_KEY_UILaunchStoryboardName` through
-     > `$(LAUNCH_SCREEN_STORYBOARD)`; ensure that key exists in the target's build settings.
-> 4. **iOS launch-screen cache** — iOS caches the launch screen aggressively. After the fix,
-     > delete the app from the simulator/device (or erase the simulator) and rebuild.
+
+> Per-flavor launch screen not switching at runtime? See [Troubleshooting](#troubleshooting).
 
 ### Source-set fallback (no AGP)
 
@@ -468,6 +562,33 @@ NativeSplash.installSplashScreen(this) { splashScreenViewProvider ->
 
 ---
 
+## Troubleshooting
+
+### iOS: it always shows the default launch storyboard regardless of flavor
+
+The per-flavor `LaunchScreen<Flavor>.storyboard` files generate and look correct in Xcode, but the app always launches
+with the default. Causes, in order of likelihood:
+
+1. **Xcode wiring is opt-in and disabled.** Check the Gradle log: if `> Task …:wireXcodeFlavors SKIPPED` (or the iOS
+   task warns that Xcode is NOT wired), then `kmpNativeSplash.ios.autoWireXcodeFlavors` is `false` (the default — it
+   patches `project.pbxproj`, so it's off until you opt in). Enable it:
+   ```kotlin
+   kmpNativeSplash { ios { autoWireXcodeFlavors = true } }
+   ```
+   Commit your Xcode project first. Without this, the per-flavor storyboards are generated but never connected to any
+   build configuration.
+2. **No per-flavor build configurations** (see the prerequisite under
+   [iOS multi-flavor Xcode wiring](#ios-multi-flavor-xcode-wiring-opt-in)). With wiring enabled,
+   `./gradlew generateNativeSplash` logs each `config '<name>' → <storyboard>` mapping and warns loudly when every
+   configuration resolved to the default. If you only see `Debug`/`Release`, add the per-flavor configs.
+3. **`GENERATE_INFOPLIST_FILE = YES`** — the on-disk `Info.plist` edit is ignored by Xcode. The plugin also routes
+   `INFOPLIST_KEY_UILaunchStoryboardName` through `$(LAUNCH_SCREEN_STORYBOARD)`; ensure that key exists in the target's
+   build settings.
+4. **iOS launch-screen cache** — iOS caches the launch screen aggressively. After the fix, delete the app from the
+   simulator/device (or erase the simulator) and rebuild.
+
+---
+
 ## Tasks reference
 
 | Task                             | What it does                                                                      |
@@ -493,14 +614,34 @@ NativeSplash.installSplashScreen(this) { splashScreenViewProvider ->
 | Android | `minSdk` 24+ |
 | iOS     | iOS 11+      |
 
+> Built and tested on Kotlin 2.3.0, AGP 8.13.0, JDK 17, `androidx-core-splashscreen` 1.2.0.
+
 ---
 
 ## License
 
-Apache License 2.0
+Released under the **Apache License 2.0** — see [LICENSE](LICENSE).
+
+SPDX-License-Identifier: Apache-2.0
+
+---
 
 ## Contributing
 
-Contributions are welcome, please open a branch and submit a PR.
+Issues, bug reports, and PRs are welcome.
 
-KMP-native-splash is inspired by  [flutter_native_splash](https://pub.dev/packages/flutter_native_splash).
+1. Fork and branch off `main`.
+2. Build and test:
+   ```bash
+   ./gradlew build
+   ./gradlew :plugin:test :library:allTests
+   ```
+3. Open a PR against `main`; CI (build + multi-target test matrix) runs automatically.
+
+For larger changes, open an issue first to discuss the approach.
+
+---
+
+## Acknowledgements
+
+Inspired by [flutter_native_splash](https://pub.dev/packages/flutter_native_splash).
